@@ -71,3 +71,68 @@ The gate does no network or model calls and is pure with respect to its
 inputs: run it, read `blocked`, decide whether to return `responseText` to
 the caller or ask the model to redraft, and persist `provenance` wherever
 you keep ground-truth records.
+
+## Persisting grounded claims: the signed claim log
+
+`gate` returns a `ProvenanceRecord`; storing it durably is the caller's job.
+`ClaimLog` is that store: an append-only, hash-linked, Ed25519-signed JSONL
+file. `commitGateResult` bridges the two — it reads a `GateResult`, and for
+every claim with disposition `"grounded"` asks a caller-supplied
+`witnessResolver` what actually backs it. The library never invents a
+witness or an independence claim; only the caller knows what its tools
+actually attest.
+
+```ts
+import { gate, commitGateResult, ClaimLog, JsonlFileStorage, generateIdentity } from "concussion-protocol";
+import type { GateConfig, TurnContext } from "concussion-protocol";
+
+const config: GateConfig = { onUngroundedExternalClaim: "flag", rewriteSelfObservation: true };
+const turn: TurnContext = {
+  responseText: "It is 3pm.",
+  toolCalls: [{ name: "get_time", id: "call_1" }],
+  externalTraceProvided: false,
+};
+
+const result = gate(turn, config);
+
+// The log is a plain JSONL file; identity is an Ed25519 keypair the caller manages.
+const log = new ClaimLog(new JsonlFileStorage("./claims.jsonl"));
+const { identity, privateKeyPem, publicKeyPem } = generateIdentity();
+
+const appended = commitGateResult(
+  result,
+  (claim) => {
+    if (claim.category !== "time") return undefined;
+    // Only the caller knows what get_time actually attests.
+    return {
+      witnesses: [{ id: "get_time#call_1", kind: "tool_call", attestation: "get_time returned 15:00:00Z for this turn." }],
+    };
+  },
+  { log, privateKeyPem, identity },
+);
+
+console.log(appended[0]?.verified); // true
+console.log(log.entries()[0]?.claim.groundingLevel); // "single" — one witness, no independence basis
+
+// Verifying the chain walks it from genesis, recomputing every hash and signature.
+console.log(log.verifyChain((id) => (id === identity ? publicKeyPem : undefined)));
+// { ok: true }
+
+// --- Tamper detection: edit one past entry on disk, then re-verify. ---
+import { readFileSync, writeFileSync } from "node:fs";
+
+const lines = readFileSync("./claims.jsonl", "utf8").trim().split("\n");
+const tampered = JSON.parse(lines[0]!);
+tampered.claim.text = "It is midnight."; // silently rewrite history
+writeFileSync("./claims.jsonl", `${JSON.stringify(tampered)}\n`, "utf8");
+
+console.log(log.verifyChain((id) => (id === identity ? publicKeyPem : undefined)));
+// { ok: false, brokenAt: 0, reason: "entry.hash does not match the entry's content; the entry has been altered." }
+```
+
+Two or more witnesses only reach `groundingLevel: "corroborated"` when the
+caller also supplies an `IndependenceBasis` naming two or more of them —
+witnesses that might share a failure mode, with no recorded reason they
+don't, stay capped at `"single"`. `ClaimLog` has no update or delete method:
+rewriting a past entry, as above, is exactly what `verifyChain` is built to
+catch, so the API never offers a quiet way to do it.
