@@ -46,6 +46,8 @@ The gate itself is the seam that connects them: it consumes compacted prior stat
 
 **v1 (this repo, initial):** the grounding gate and self-report firewall, pattern-based, with provenance emission. No trace capture, no reconciliation. Independently useful and the foundation every later version sits on.
 
+**v1 + signed claim log (this repo):** the persistence layer v1 left to the caller. `ClaimLog` is an append-only, hash-linked, Ed25519-signed JSONL store; `commitGateResult` bridges a v1 `GateResult` into it. Adds the corroboration primitive: a claim reaches `groundingLevel: "corroborated"` only when the caller supplies two or more witnesses plus a recorded, human-or-caller-supplied reason they're independent — a bare count of witnesses that might share a failure mode stays `"single"`. No key management or distribution, no network, no blockchain; keys are caller-supplied.
+
 **v2:** single-pass reconciliation. The draft is checked once against a stored trace (via stenographer + short-hand); disagreement between the output and the recorded reasoning is surfaced. Proves the seam works on a small scale.
 
 **v3:** multi-pass convergence plus a minimal belief model (segments carry evidence weight and update only when grounded counter-evidence exceeds their mass; core beliefs are human-override-only). Added only after v2 shows reconciliation produces real signal, and only with the external-grounding invariant wired in as the thing that prevents comfortable-wrong convergence. Design recorded in `DESIGN-v3.md`.
