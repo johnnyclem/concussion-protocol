@@ -1,0 +1,31 @@
+{
+  "name": "concussion-protocol",
+  "version": "0.1.0",
+  "description": "A gate that keeps AI agent output tethered to something outside its own generation: blocks or flags ungrounded external-state claims, rewrites false self-observation into honest inference, and emits a provenance record.",
+  "type": "module",
+  "license": "GPL-3.0",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4",
+    "vitest": "^2.0.5"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
