@@ -91,14 +91,19 @@ The gate itself is the seam that connects them: it consumes compacted prior stat
 
 ```sh
 npm install
-npm run build       # compile to dist/
-npm run typecheck   # tsc --noEmit
-npm test            # vitest run
+npm run build          # compile to dist/
+npm run typecheck      # tsc --noEmit
+npm test                # vitest run
+npm run test:coverage   # vitest run --coverage (enforces an 80% floor)
 ```
 
 ## Status
 
-v1 and the signed claim log are implemented and tested (see `test/`). v2 reconciliation is not yet started.
+v1 and the signed claim log are implemented and tested (see `test/`, and `npm run test:coverage` for the current coverage report). v2 reconciliation is not yet started.
+
+## Contributing
+
+See [`CONTRIBUTING.md`](./CONTRIBUTING.md) for the development workflow and testing expectations, and [`FAQ.md`](./FAQ.md) for answers to common questions before opening an issue.
 
 ## License
 

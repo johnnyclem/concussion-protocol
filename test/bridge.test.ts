@@ -117,6 +117,52 @@ describe("commitGateResult", () => {
     expect(log.entries()[0]!.claim.groundingLevel).toBe("single");
   });
 
+  it("commits a grounded claim with two witnesses but no independence basis as \"single\"", () => {
+    const result = baseGateResult();
+
+    commitGateResult(
+      result,
+      (claim) => {
+        if (claim.category !== "time") return undefined;
+        const witnesses: Witness[] = [
+          { id: "get_time", kind: "tool_call", attestation: "Returned a timestamp from the system clock for this turn." },
+          { id: "wall_clock_sensor", kind: "external_document", attestation: "An independent hardware clock reported a consistent time." },
+        ];
+        return { witnesses };
+      },
+      { log, privateKeyPem: signer.privateKeyPem, identity: signer.identity },
+    );
+
+    const entry = log.entries()[0]!;
+    expect(entry.claim.groundingLevel).toBe("single");
+    expect(entry.claim.reason).toContain("without a recorded independence basis");
+  });
+
+  it("commits a grounded claim with an independence basis that names fewer than two witnesses as \"single\"", () => {
+    const result = baseGateResult();
+    const independence: IndependenceBasis = {
+      witnesses: ["get_time"],
+      reason: "Only one of the two witnesses is named here, which is not enough to establish independence.",
+    };
+
+    commitGateResult(
+      result,
+      (claim) => {
+        if (claim.category !== "time") return undefined;
+        const witnesses: Witness[] = [
+          { id: "get_time", kind: "tool_call", attestation: "Returned a timestamp from the system clock for this turn." },
+          { id: "wall_clock_sensor", kind: "external_document", attestation: "An independent hardware clock reported a consistent time." },
+        ];
+        return { witnesses, independence };
+      },
+      { log, privateKeyPem: signer.privateKeyPem, identity: signer.identity },
+    );
+
+    const entry = log.entries()[0]!;
+    expect(entry.claim.groundingLevel).toBe("single");
+    expect(entry.claim.reason).toContain("did not cover two or more distinct witness sources");
+  });
+
   it("never fabricates a witness attestation or independence reason: the log stores exactly what the resolver supplied, verbatim", () => {
     const result = baseGateResult();
     const attestation = "Tool call get_time returned 15:00:00Z from the system clock.";
