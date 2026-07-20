@@ -26,6 +26,41 @@ A skill file (instructions the agent reads) can describe the discipline, and thi
 
 The v1 detector is pattern-based, not an LLM call. Most of the highest-value cases (present-tense-external-fact patterns, self-observation grammar) are surprisingly regular and catchable cheaply. A model-based classifier is a later option, added only if measurement shows the cheap pass leaves real value on the table, not assumed up front.
 
+## Installation
+
+Not yet published to a package registry. Install it from source:
+
+```sh
+git clone https://github.com/johnnyclem/concussion-protocol.git
+cd concussion-protocol
+npm install
+npm run build
+```
+
+Requires Node.js >= 18.
+
+## Quick start
+
+```ts
+import { gate, type GateConfig, type TurnContext } from "concussion-protocol";
+
+const config: GateConfig = {
+  onUngroundedExternalClaim: "block", // or "flag" to annotate and pass through
+  rewriteSelfObservation: true,
+};
+
+const turn: TurnContext = {
+  responseText: "It is late, so I'll keep this brief.",
+  toolCalls: [],
+  externalTraceProvided: false,
+};
+
+const result = gate(turn, config);
+console.log(result.blocked); // true — no tool call grounds the time claim
+```
+
+See [`USAGE.md`](./USAGE.md) for the full walkthrough, including the signed claim log (`ClaimLog`, `commitGateResult`) that persists grounded claims as an append-only, hash-linked, Ed25519-signed record.
+
 ## What it is not
 
 - It is **not** a way for a model to introspect on its own weights or activations. That is not possible, and this library does not pretend to it. Rule 2 exists precisely because that access does not exist.
@@ -44,17 +79,26 @@ The gate itself is the seam that connects them: it consumes compacted prior stat
 
 ## Roadmap
 
-**v1 (this repo, initial):** the grounding gate and self-report firewall, pattern-based, with provenance emission. No trace capture, no reconciliation. Independently useful and the foundation every later version sits on.
+**v1 (shipped):** the grounding gate and self-report firewall, pattern-based, with provenance emission. No trace capture, no reconciliation. Independently useful and the foundation every later version sits on.
 
-**v1 + signed claim log (this repo):** the persistence layer v1 left to the caller. `ClaimLog` is an append-only, hash-linked, Ed25519-signed JSONL store; `commitGateResult` bridges a v1 `GateResult` into it. Adds the corroboration primitive: a claim reaches `groundingLevel: "corroborated"` only when the caller supplies two or more witnesses plus a recorded, human-or-caller-supplied reason they're independent — a bare count of witnesses that might share a failure mode stays `"single"`. No key management or distribution, no network, no blockchain; keys are caller-supplied.
+**v1 + signed claim log (shipped):** the persistence layer v1 left to the caller. `ClaimLog` is an append-only, hash-linked, Ed25519-signed JSONL store; `commitGateResult` bridges a v1 `GateResult` into it. Adds the corroboration primitive: a claim reaches `groundingLevel: "corroborated"` only when the caller supplies two or more witnesses plus a recorded, human-or-caller-supplied reason they're independent — a bare count of witnesses that might share a failure mode stays `"single"`. No key management or distribution, no network, no blockchain; keys are caller-supplied.
 
-**v2:** single-pass reconciliation. The draft is checked once against a stored trace (via stenographer + short-hand); disagreement between the output and the recorded reasoning is surfaced. Proves the seam works on a small scale.
+**v2 (next):** single-pass reconciliation. The draft is checked once against a stored trace (via stenographer + short-hand); disagreement between the output and the recorded reasoning is surfaced. Proves the seam works on a small scale.
 
-**v3:** multi-pass convergence plus a minimal belief model (segments carry evidence weight and update only when grounded counter-evidence exceeds their mass; core beliefs are human-override-only). Added only after v2 shows reconciliation produces real signal, and only with the external-grounding invariant wired in as the thing that prevents comfortable-wrong convergence. Design recorded in `DESIGN-v3.md`.
+**v3:** multi-pass convergence plus a minimal belief model (segments carry evidence weight and update only when grounded counter-evidence exceeds their mass; core beliefs are human-override-only). Added only after v2 shows reconciliation produces real signal, and only with the external-grounding invariant wired in as the thing that prevents comfortable-wrong convergence.
+
+## Development
+
+```sh
+npm install
+npm run build       # compile to dist/
+npm run typecheck   # tsc --noEmit
+npm test            # vitest run
+```
 
 ## Status
 
-Early. v1 module and test suite are the first build target. See `HANDOFF.md` for the implementation spec.
+v1 and the signed claim log are implemented and tested (see `test/`). v2 reconciliation is not yet started.
 
 ## License
 
