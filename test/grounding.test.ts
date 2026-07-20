@@ -42,4 +42,10 @@ describe("checkGrounding", () => {
     const claim: DetectedClaim = { kind: "external_state", text: "something", index: 0 };
     expect(findGroundingToolCalls(claim, [{ name: "get_time" }])).toEqual([]);
   });
+
+  it("returns no grounding tool calls when the category has no pattern in the map", () => {
+    const claim: DetectedClaim = { kind: "external_state", text: "something", category: "unmapped_category", index: 0 };
+    expect(findGroundingToolCalls(claim, [{ name: "get_time" }])).toEqual([]);
+    expect(checkGrounding(claim, [{ name: "get_time" }])).toBe("ungrounded");
+  });
 });

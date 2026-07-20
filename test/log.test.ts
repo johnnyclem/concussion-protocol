@@ -95,6 +95,54 @@ describe("ClaimLog", () => {
     expect(result.brokenAt).toBe(1);
   });
 
+  it("detects an entry whose index does not match its position in the log", () => {
+    const log = new ClaimLog(new JsonlFileStorage(filePath));
+    const { privateKeyPem, publicKeyPem, identity } = generateIdentity();
+
+    log.append(groundedClaim("It is 3pm."), { privateKeyPem, identity });
+    log.append(groundedClaim("It is 4pm."), { privateKeyPem, identity });
+
+    const lines = readFileSync(filePath, "utf8").trim().split("\n");
+    const corrupted = JSON.parse(lines[1]!);
+    corrupted.index = 5;
+    lines[1] = JSON.stringify(corrupted);
+    writeFileSync(filePath, `${lines.join("\n")}\n`, "utf8");
+
+    const result = log.verifyChain((id) => (id === identity ? publicKeyPem : undefined));
+    expect(result.ok).toBe(false);
+    expect(result.brokenAt).toBe(1);
+    expect(result.ok === false && result.reason).toContain("does not match its position");
+  });
+
+  it("detects a signature that does not verify against the resolved public key, leaving hash and prevHash intact", () => {
+    const log = new ClaimLog(new JsonlFileStorage(filePath));
+    const { privateKeyPem, publicKeyPem, identity } = generateIdentity();
+
+    log.append(groundedClaim("It is 3pm."), { privateKeyPem, identity });
+
+    const lines = readFileSync(filePath, "utf8").trim().split("\n");
+    const corrupted = JSON.parse(lines[0]!);
+    // Flip the signature to something else valid-looking but wrong, without touching hash/prevHash/index.
+    corrupted.signature = Buffer.from("not a real signature").toString("base64");
+    lines[0] = JSON.stringify(corrupted);
+    writeFileSync(filePath, `${lines.join("\n")}\n`, "utf8");
+
+    const result = log.verifyChain((id) => (id === identity ? publicKeyPem : undefined));
+    expect(result.ok).toBe(false);
+    expect(result.brokenAt).toBe(0);
+    expect(result.ok === false && result.reason).toContain("signature does not verify");
+  });
+
+  it("skips signature verification (but still checks hash-link) when the resolver cannot supply a public key", () => {
+    const log = new ClaimLog(new JsonlFileStorage(filePath));
+    const { privateKeyPem, identity } = generateIdentity();
+
+    log.append(groundedClaim("It is 3pm."), { privateKeyPem, identity });
+
+    const result = log.verifyChain(() => undefined);
+    expect(result).toEqual({ ok: true });
+  });
+
   it("exposes no update or delete method", () => {
     const methods = Object.getOwnPropertyNames(ClaimLog.prototype);
     expect(methods).toContain("append");

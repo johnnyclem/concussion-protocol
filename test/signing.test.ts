@@ -33,6 +33,13 @@ describe("signing", () => {
     expect(verifyEntry(tampered, signature, publicKeyPem)).toBe(false);
   });
 
+  it("returns false, rather than throwing, when the public key is malformed", () => {
+    const { privateKeyPem } = generateIdentity();
+    const content = canonicalize({ claim: "the sky is blue" });
+    const signature = signEntry(content, privateKeyPem);
+    expect(verifyEntry(content, signature, "not a valid PEM key")).toBe(false);
+  });
+
   it("produces byte-identical canonical output for logically-equal inputs with different key order", () => {
     const a = canonicalize({ x: 1, y: 2, z: { nested: true, first: "a" } });
     const b = canonicalize({ z: { first: "a", nested: true }, y: 2, x: 1 });
