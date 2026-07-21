@@ -67,6 +67,34 @@ rewritten into inference grammar (`"I would expect, though I can't verify
 it from the inside, that I ..."`) rather than blocked — the response still
 goes out, just with an honest epistemic status.
 
+Scope-mismatched conclusions are the third case: a broad, universal-sounding
+claim ("this fixes the issue," "handles all edge cases") whose only stated
+basis, named in the same response, is a narrower check ("wrote a test for
+the happy path," "checked one case"). There is no rewrite for this one —
+narrowing a claim correctly requires knowing what was actually checked, so
+the gate only blocks or flags per `onScopeMismatch` (defaults to `"flag"`
+if omitted):
+
+```ts
+const scopeConfig: GateConfig = { onUngroundedExternalClaim: "flag", rewriteSelfObservation: true, onScopeMismatch: "block" };
+const mismatched: TurnContext = {
+  responseText: "I wrote a test for the happy path and it passes, so this fixes the issue.",
+  toolCalls: [],
+  externalTraceProvided: false,
+};
+
+const scopeResult = gate(mismatched, scopeConfig);
+console.log(scopeResult.blocked); // true
+console.log(scopeResult.claims[0]);
+// {
+//   kind: "scope_mismatch",
+//   text: "this fixes the issue",
+//   category: "completeness",
+//   disposition: "flagged",
+//   reason: "This conclusion is broader than the narrow check the response itself names as its basis; blocking per configuration."
+// }
+```
+
 The gate does no network or model calls and is pure with respect to its
 inputs: run it, read `blocked`, decide whether to return `responseText` to
 the caller or ask the model to redraft, and persist `provenance` wherever

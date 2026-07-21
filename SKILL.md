@@ -50,6 +50,8 @@ A convergence loop must therefore never terminate on internal agreement alone. I
 
 This is a discipline the agent follows, not a capability that makes the agent infallible. Instructions can be drifted from under load; an agent that has named this pattern can still violate it moments later, because understanding a rule and having that understanding govern the next generation are different things. Enforcement that survives drift belongs in code that gates output, not in instructions the model reads. This skill is the honest, portable, zero-infrastructure layer; it is not a substitute for a gate that runs on every response.
 
+All three rules above are also enforced in code by the `concussion-protocol` gate (`gate()`, in this same repository): a grounding gate for Rule 1, a self-report firewall for Rule 2, and a scope-mismatch detector for Rule 3, all pattern-based and all running on every drafted response. This skill file is the version of the discipline an agent can read and follow directly; the gate is the version that still catches a violation after the agent has drifted from it.
+
 ## Quick reference
 
 Before asserting, ask:

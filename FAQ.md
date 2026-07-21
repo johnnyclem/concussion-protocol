@@ -2,11 +2,11 @@
 
 ## What problem does this actually solve?
 
-Language models write confidently whether or not the underlying claim is grounded in anything outside the model's own generation. `concussion-protocol` is a code-level check that runs on the drafted response before it goes to the user: it looks for present-tense claims about the external world and for the agent narrating its own "observations" of its prior processing, and it blocks, flags, or rewrites what it finds. See the [README](./README.md) for the full rationale.
+Language models write confidently whether or not the underlying claim is grounded in anything outside the model's own generation. `concussion-protocol` is a code-level check that runs on the drafted response before it goes to the user: it looks for present-tense claims about the external world, for the agent narrating its own "observations" of its prior processing, and for broad conclusions whose only stated basis is a narrower check, and it blocks, flags, or rewrites what it finds. See the [README](./README.md) for the full rationale.
 
 ## Is this an LLM call? Does it add latency or cost?
 
-No. The v1 detectors (`detectExternalStateClaims`, `detectSelfObservation`) and the grounding check (`checkGrounding`) are all regex-based pattern matching over the response text — no network call, no model call. `gate()` is a pure, synchronous function of its inputs. It adds negligible latency (regex passes over a string) and zero API cost. A model-based classifier is listed as a possible later addition, but only if evidence shows the pattern-based pass is leaving real value on the table — see the README's "What it does" section.
+No. The v1 detectors (`detectExternalStateClaims`, `detectSelfObservation`, `detectScopeMismatches`) and the grounding check (`checkGrounding`) are all regex-based pattern matching over the response text — no network call, no model call. `gate()` is a pure, synchronous function of its inputs. It adds negligible latency (regex passes over a string) and zero API cost. A model-based classifier is listed as a possible later addition, but only if evidence shows the pattern-based pass is leaving real value on the table — see the README's "What it does" section.
 
 ## Does the gate rewrite my model's output for me automatically?
 
@@ -14,6 +14,7 @@ No. The v1 detectors (`detectExternalStateClaims`, `detectSelfObservation`) and 
 
 - Ungrounded external-state claims are either **flagged** (annotated in the returned claims, response text unchanged) or, with `onUngroundedExternalClaim: "block"`, cause `result.blocked` to be `true` — the caller decides whether to suppress the response, ask the model to redraft, or something else. The library never redrafts a blocked response itself.
 - Self-observation text, with `rewriteSelfObservation: true`, is mechanically rewritten in the *returned* `responseText` (from observation grammar to inference grammar) — but only when a clean rewrite exists; otherwise it's flagged instead of risking garbled output.
+- Scope-mismatched conclusions (a broad claim whose only stated basis is a narrower, named check) are **flagged** or, with `onScopeMismatch: "block"`, cause `result.blocked` to be `true`. As with external-state claims, the library never rewrites the conclusion for you — narrowing a claim correctly requires knowing what was actually checked, which only the caller (or the model, on redraft) has.
 
 See [`USAGE.md`](./USAGE.md) for the full example of reading `blocked`, `claims`, and `responseText` off a `GateResult`.
 
@@ -30,9 +31,9 @@ A tool call in the *same turn* whose name plausibly matches the claim's category
 These are the three claim `disposition`s a `GateResult` can carry, plus the top-level `blocked` boolean:
 
 - **`grounded`** — a matching tool call this turn (for external-state claims) or an external trace in context (for self-observation) backs the claim.
-- **`flagged`** — the claim is annotated in `result.claims` with a reason, but `responseText` is returned unchanged. This is the default outcome for an ungrounded external claim under `onUngroundedExternalClaim: "flag"`, and for self-observation when rewriting is off or no clean rewrite exists.
+- **`flagged`** — the claim is annotated in `result.claims` with a reason, but `responseText` is returned unchanged. This is the default outcome for an ungrounded external claim under `onUngroundedExternalClaim: "flag"`, for a scope-mismatched conclusion under `onScopeMismatch: "flag"` (the default when the option is omitted), and for self-observation when rewriting is off or no clean rewrite exists.
 - **`rewritten`** — only applies to self-observation: the text was mechanically changed from observation grammar to inference grammar in the returned `responseText`.
-- **`blocked`** (top-level, not a claim disposition) — `true` only when `onUngroundedExternalClaim: "block"` and at least one external-state claim went ungrounded. It's a signal to the caller, not an action the library takes on your behalf (see above).
+- **`blocked`** (top-level, not a claim disposition) — `true` when `onUngroundedExternalClaim: "block"` and at least one external-state claim went ungrounded, or when `onScopeMismatch: "block"` and at least one scope-mismatched conclusion was found. It's a signal to the caller, not an action the library takes on your behalf (see above).
 
 ## What is the signed claim log, and do I need it?
 
@@ -52,7 +53,7 @@ A prompt-level instruction (including the `SKILL.md` this repo ships) can descri
 
 ## Is `concussion-protocol` a guarantee that output is true?
 
-No. It gates specific, detectable failure modes — ungrounded present-tense external claims and false self-observation grammar — and it does that deterministically. It does not verify the *content* of a grounded claim (a tool call can itself return something wrong), and it doesn't implement Rule 3 (scope-mismatched conclusions) yet. See "What it is not" in the README for the full list of things this library does not claim to do.
+No. It gates specific, detectable failure modes — ungrounded present-tense external claims, false self-observation grammar, and scope-mismatched conclusions — and it does that deterministically. It does not verify the *content* of a grounded claim (a tool call can itself return something wrong), and its scope-mismatch detector only catches conclusions whose narrower basis is named in the response text itself, not every case where verification was actually narrower than a claim. See "What it is not" in the README for the full list of things this library does not claim to do.
 
 ## Does this replace `stenographer`, `short-hand`, or `AgentVault`?
 

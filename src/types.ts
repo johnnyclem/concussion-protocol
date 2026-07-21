@@ -7,8 +7,8 @@
  * internal state.
  */
 
-/** The two failure modes v1 detects. Rule 3 (scope-mismatch) is not implemented in v1. */
-export type ClaimKind = "external_state" | "self_observation";
+/** The three failure modes v1 detects, one per rule in SKILL.md. */
+export type ClaimKind = "external_state" | "self_observation" | "scope_mismatch";
 
 /** What the gate decided to do with a detected claim. */
 export type ClaimDisposition = "grounded" | "flagged" | "rewritten";
@@ -63,6 +63,8 @@ export interface GateConfig {
   onUngroundedExternalClaim: "block" | "flag";
   /** If true, rewrite self-observation grammar into inference grammar when unrewritable spans are not hit. */
   rewriteSelfObservation: boolean;
+  /** "block" sets GateResult.blocked = true; "flag" annotates and passes. Defaults to "flag" if omitted. */
+  onScopeMismatch?: "block" | "flag";
 }
 
 /** The result of running the gate over a turn. */

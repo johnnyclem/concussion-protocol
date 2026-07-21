@@ -22,6 +22,7 @@ A skill file (instructions the agent reads) can describe the discipline, and thi
 
 - **Grounding gate.** Detects present-tense external-state claims (time, current facts, "the latest X," "who is Y") and checks whether a corresponding tool call occurred in the same turn. If not, the claim is blocked or flagged per configuration.
 - **Self-report firewall.** Detects first-person observation grammar about the agent's own prior processing ("I can see that I...", "my earlier reasoning showed...") and, absent an external trace in context, rewrites it from observation to inference.
+- **Scope-mismatch detector.** Detects broad, universal-sounding conclusions ("this fixes the issue," "handles all edge cases," "this always works") whose only stated basis, named in the same response, is a narrower check ("wrote a test for the happy path," "checked one case") with nothing broader-scoped to justify the wider claim. Blocked or flagged per configuration, same as the grounding gate.
 - **Provenance emission.** Every gated response produces a structured record: which claims were grounded by which tool touches, which were flagged, and why. This record is shaped to drop directly into an [AgentVault](https://github.com/johnnyclem/AgentVault)-style ground-truth store.
 
 The v1 detector is pattern-based, not an LLM call. Most of the highest-value cases (present-tense-external-fact patterns, self-observation grammar) are surprisingly regular and catchable cheaply. A model-based classifier is a later option, added only if measurement shows the cheap pass leaves real value on the table, not assumed up front.
@@ -79,7 +80,7 @@ The gate itself is the seam that connects them: it consumes compacted prior stat
 
 ## Roadmap
 
-**v1 (shipped):** the grounding gate and self-report firewall, pattern-based, with provenance emission. No trace capture, no reconciliation. Independently useful and the foundation every later version sits on.
+**v1 (shipped):** the grounding gate, self-report firewall, and scope-mismatch detector, pattern-based, with provenance emission. No trace capture, no reconciliation. Independently useful and the foundation every later version sits on.
 
 **v1 + signed claim log (shipped):** the persistence layer v1 left to the caller. `ClaimLog` is an append-only, hash-linked, Ed25519-signed JSONL store; `commitGateResult` bridges a v1 `GateResult` into it. Adds the corroboration primitive: a claim reaches `groundingLevel: "corroborated"` only when the caller supplies two or more witnesses plus a recorded, human-or-caller-supplied reason they're independent — a bare count of witnesses that might share a failure mode stays `"single"`. No key management or distribution, no network, no blockchain; keys are caller-supplied.
 

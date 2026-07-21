@@ -68,6 +68,30 @@ describe("gate", () => {
     expect(result.provenance.summary).toEqual({ total: 0, grounded: 0, flagged: 0, rewritten: 0 });
   });
 
+  it("flags a scope-mismatched conclusion drawn from a narrow, named check", () => {
+    const config: GateConfig = { onUngroundedExternalClaim: "flag", rewriteSelfObservation: true };
+    const original = "I wrote a test for the happy path and it passes, so this fixes the issue.";
+    const result = gate({ responseText: original, toolCalls: [], externalTraceProvided: false }, config);
+
+    expect(result.blocked).toBe(false);
+    expect(result.responseText).toBe(original);
+    const scopeClaim = result.claims.find((c) => c.kind === "scope_mismatch");
+    expect(scopeClaim?.disposition).toBe("flagged");
+  });
+
+  it("blocks a scope-mismatched conclusion when onScopeMismatch is 'block'", () => {
+    const config: GateConfig = { onUngroundedExternalClaim: "flag", rewriteSelfObservation: true, onScopeMismatch: "block" };
+    const result = gate(
+      { responseText: "I checked one case and it worked, so this handles all edge cases.", toolCalls: [], externalTraceProvided: false },
+      config,
+    );
+
+    expect(result.blocked).toBe(true);
+    const scopeClaim = result.claims.find((c) => c.kind === "scope_mismatch");
+    expect(scopeClaim?.disposition).toBe("flagged");
+    expect(scopeClaim?.reason).toContain("blocking per configuration");
+  });
+
   it("never justifies a disposition by claiming knowledge of the model's internal state", () => {
     const config: GateConfig = { onUngroundedExternalClaim: "flag", rewriteSelfObservation: true };
     const result = gate(

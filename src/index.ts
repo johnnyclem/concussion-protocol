@@ -23,6 +23,8 @@ export { gate } from "./gate.js";
 
 export { detectExternalStateClaims } from "./detectors/externalState.js";
 
+export { detectScopeMismatches } from "./detectors/scopeMismatch.js";
+
 export { detectSelfObservation, findSelfObservationMatches, applyRewrite } from "./detectors/selfObservation.js";
 export type { SelfObservationMatch } from "./detectors/selfObservation.js";
 
