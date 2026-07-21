@@ -1,6 +1,7 @@
 import type { GateConfig, GateResult, GatedClaim, ProvenanceRecord, TurnContext } from "./types.js";
 import { detectExternalStateClaims } from "./detectors/externalState.js";
 import { applyRewrite, findSelfObservationMatches } from "./detectors/selfObservation.js";
+import { detectScopeMismatches } from "./detectors/scopeMismatch.js";
 import { findGroundingToolCalls } from "./grounding.js";
 
 /**
@@ -91,6 +92,23 @@ export function gate(turn: TurnContext, config: GateConfig): GateResult {
           config.rewriteSelfObservation && match.replacement === null
             ? "Observation grammar about the agent's own prior processing was detected, but a clean mechanical rewrite could not be produced; flagging instead of risking a garbled response."
             : "Observation grammar about the agent's own prior processing was detected; rewriting is disabled by configuration.",
+      },
+    });
+  }
+
+  for (const claim of detectScopeMismatches(turn.responseText)) {
+    const willBlock = config.onScopeMismatch === "block";
+    if (willBlock) blocked = true;
+    ordered.push({
+      index: claim.index,
+      claim: {
+        kind: "scope_mismatch",
+        text: claim.text,
+        category: claim.category,
+        disposition: "flagged",
+        reason: willBlock
+          ? "This conclusion is broader than the narrow check the response itself names as its basis; blocking per configuration."
+          : "This conclusion is broader than the narrow check the response itself names as its basis.",
       },
     });
   }
