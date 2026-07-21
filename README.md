@@ -6,6 +6,20 @@ Language models produce fluent, confident text by default, whether or not anythi
 
 The name is from the medical check that asks a patient who the president is. The answer does not matter. The point is to test whether they can still reach a reality outside their own head.
 
+## Contents
+
+- [Why this exists](#why-this-exists)
+- [What it does](#what-it-does)
+- [Installation](#installation)
+- [Quick start](#quick-start)
+- [What it is not](#what-it-is-not)
+- [Architecture](#architecture)
+- [Roadmap](#roadmap)
+- [Development](#development)
+- [Status](#status)
+- [Contributing](#contributing)
+- [License](#license)
+
 ## Why this exists
 
 Three failure modes recur in agent output, and all three are invisible from the inside because they wear the same fluent grammar as correct output:
@@ -14,7 +28,7 @@ Three failure modes recur in agent output, and all three are invisible from the 
 2. **False self-observation.** The agent claims to "see" what it did in a prior turn or "observe" its own reasoning, when it has no introspective access to either. It is generating a plausible account of its own history using the same mechanism it uses for everything else.
 3. **Scope-mismatched conclusions.** The agent checks one narrow thing, finds an absence, and concludes something broad, which feels like diligence and disguises the gap.
 
-A skill file (instructions the agent reads) can describe the discipline, and this repo ships one. But instructions get drifted from under load. Enforcement that survives drift has to run in code, on every response. That is what this library is.
+A skill file (instructions the agent reads) can describe the discipline, and this repo ships one, in [`SKILL.md`](./SKILL.md). But instructions get drifted from under load. Enforcement that survives drift has to run in code, on every response. That is what this library is.
 
 ## What it does
 
@@ -25,7 +39,7 @@ A skill file (instructions the agent reads) can describe the discipline, and thi
 - **Scope-mismatch detector.** Detects broad, universal-sounding conclusions ("this fixes the issue," "handles all edge cases," "this always works") whose only stated basis, named in the same response, is a narrower check ("wrote a test for the happy path," "checked one case") with nothing broader-scoped to justify the wider claim. Blocked or flagged per configuration, same as the grounding gate.
 - **Provenance emission.** Every gated response produces a structured record: which claims were grounded by which tool touches, which were flagged, and why. This record is shaped to drop directly into an [AgentVault](https://github.com/johnnyclem/AgentVault)-style ground-truth store.
 
-The v1 detector is pattern-based, not an LLM call. Most of the highest-value cases (present-tense-external-fact patterns, self-observation grammar) are surprisingly regular and catchable cheaply. A model-based classifier is a later option, added only if measurement shows the cheap pass leaves real value on the table, not assumed up front.
+The v1 detector is pattern-based, not an LLM call. Most of the highest-value cases (present-tense external-fact patterns, self-observation grammar) are surprisingly regular and catchable cheaply. A model-based classifier is a later option, added only if measurement shows the cheap pass leaves real value on the table, not assumed up front.
 
 ## Installation
 
@@ -57,10 +71,10 @@ const turn: TurnContext = {
 };
 
 const result = gate(turn, config);
-console.log(result.blocked); // true — no tool call grounds the time claim
+console.log(result.blocked); // true, because no tool call grounds the time claim
 ```
 
-See [`USAGE.md`](./USAGE.md) for the full walkthrough, including the signed claim log (`ClaimLog`, `commitGateResult`) that persists grounded claims as an append-only, hash-linked, Ed25519-signed record.
+`gate()` does no network or model calls. It is a pure, synchronous function of its inputs: a `TurnContext` in, a `GateResult` out. See [`USAGE.md`](./USAGE.md) for the full walkthrough, including the signed claim log (`ClaimLog`, `commitGateResult`) that persists grounded claims as an append-only, hash-linked, Ed25519-signed record.
 
 ## What it is not
 
@@ -80,13 +94,13 @@ The gate itself is the seam that connects them: it consumes compacted prior stat
 
 ## Roadmap
 
-**v1 (shipped):** the grounding gate, self-report firewall, and scope-mismatch detector, pattern-based, with provenance emission. No trace capture, no reconciliation. Independently useful and the foundation every later version sits on.
+**v1 (shipped).** The grounding gate, self-report firewall, and scope-mismatch detector, pattern-based, with provenance emission. No trace capture, no reconciliation. Independently useful, and the foundation every later version sits on.
 
-**v1 + signed claim log (shipped):** the persistence layer v1 left to the caller. `ClaimLog` is an append-only, hash-linked, Ed25519-signed JSONL store; `commitGateResult` bridges a v1 `GateResult` into it. Adds the corroboration primitive: a claim reaches `groundingLevel: "corroborated"` only when the caller supplies two or more witnesses plus a recorded, human-or-caller-supplied reason they're independent — a bare count of witnesses that might share a failure mode stays `"single"`. No key management or distribution, no network, no blockchain; keys are caller-supplied.
+**v1 + signed claim log (shipped).** The persistence layer v1 left to the caller. `ClaimLog` is an append-only, hash-linked, Ed25519-signed JSONL store; `commitGateResult` bridges a v1 `GateResult` into it. Adds the corroboration primitive: a claim reaches `groundingLevel: "corroborated"` only when the caller supplies two or more witnesses plus a recorded, human-or-caller-supplied reason they're independent. A bare count of witnesses that might share a failure mode stays `"single"`. No key management or distribution, no network, no blockchain; keys are caller-supplied.
 
-**v2 (next):** single-pass reconciliation. The draft is checked once against a stored trace (via stenographer + short-hand); disagreement between the output and the recorded reasoning is surfaced. Proves the seam works on a small scale.
+**v2 (next).** Single-pass reconciliation. The draft is checked once against a stored trace (via stenographer and short-hand); disagreement between the output and the recorded reasoning is surfaced. Proves the seam works at a small scale.
 
-**v3:** multi-pass convergence plus a minimal belief model (segments carry evidence weight and update only when grounded counter-evidence exceeds their mass; core beliefs are human-override-only). Added only after v2 shows reconciliation produces real signal, and only with the external-grounding invariant wired in as the thing that prevents comfortable-wrong convergence.
+**v3.** Multi-pass convergence plus a minimal belief model (segments carry evidence weight and update only when grounded counter-evidence exceeds their mass; core beliefs are human-override-only). Added only after v2 shows reconciliation produces real signal, and only with the external-grounding invariant wired in as the thing that prevents comfortable-wrong convergence.
 
 ## Development
 
@@ -108,4 +122,4 @@ See [`CONTRIBUTING.md`](./CONTRIBUTING.md) for the development workflow and test
 
 ## License
 
-GPL V3
+GPL v3. See [`LICENSE`](./LICENSE).
